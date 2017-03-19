@@ -6,7 +6,7 @@ output: html_document
 ---
 # Part I. Data Cleaning and Exploration
 ## Dataset
-The dataset being used for this project is Homicide Reports, 1980 - 2014, which can be retrieved at the link below. It is a collection of data on homicides throughout the United States collected by the FBI, or made available by the Freedom of Information Act. The dataset consists of *N = 638454* observations, with *p = 24 predictors*. For this project I will endeavor to derive a model to determine whether a murder will be solved or not. In discussing the predictors a number of them will be dropped as well as the number of observations.
+The dataset being used for this project is Homicide Reports, 1980 - 2014, which can be retrieved at the link below. It is a collection of data on homicides throughout the United States collected by the FBI, or made available by the Freedom of Information Act. The dataset consists of *N = 638454* observations, with *p = 24 predictors*. For this project I will endeavor to derive a model to determine whether a murder will be solved or not. In discussing the predictors a number of them will be dropped as well as the number of observations. 
 
 ## Initialization and Loading the Data
 First, I must load the libraries I will need to analyze the data, as well as the dataset itself. Data Tables provide some conveniences for analysis, such as subsetting the data without having to use another function.
