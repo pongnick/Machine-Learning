@@ -1,0 +1,206 @@
+---
+title: "Predicting Solved Murders in the US"
+author: "Nick Pongratz"
+date: "3/20/2017"
+output: html_document
+---
+# Part I. Data Cleaning and Exploration
+## Dataset
+The dataset being used for this project is Homicide Reports, 1980 - 2014, which can be retrieved at the link below. It is a collection of data on homicides throughout the United States collected by the FBI, or made available by the Freedom of Information Act. The dataset consists of *N = 638454* observations, with *p = 24 predictors*. For this project I will endeavor to derive a model to determine whether a murder will be solved or not. In discussing the predictors a number of them will be dropped as well as the number of observations.
+
+## Initialization and Loading the Data
+First, I must load the libraries I will need to analyze the data, as well as the dataset itself. Data Tables provide some conveniences for analysis, such as subsetting the data without having to use another function.
+```{r, warning=FALSE}
+library(data.table)
+library(ggplot2)
+library(descr)
+library(pander)
+library(knitr)
+
+#opts_chunk$set(cache=TRUE)
+rawdata <- data.table(read.csv('/Users/pongnick/Desktop/database.csv'))
+data<-rawdata
+```
+## Predictors and Predicted Variable
+The initial 24 predictors are as follows:  
+**Record.ID:** Unique number assigned to reported incident  
+**Agency.Code:** Unique code assigned to local agency  
+**Agency.Name:** Name of local agency  
+**Agency.Type:** Type of local agency  
+**City:** City where incident occurred  
+**State:** State where incident occurred  
+**Year:** Year when incident occurred  
+**Month:** Month when incident occurred  
+**Incident:** Unknown  
+**Crime.Type:** Type of crime committed  
+***Crime.Solved:*** Whether or not the crime was solved  
+**Victim.Sex:** Sex of the victim  
+**Victim.Age** Age of the victim  
+**Victim.Race:** Race of the victim  
+**Victim.Ethnicity:** Ethnicity of the victim  
+**Perpetrator.Sex:** Sex of the perpetrator  
+**Perpetrator.Age:** Age of the perpetrator  
+**Perpetrator.Race:** Race of the perpetrator  
+**Perpetrator.Ethnicity:** Ethnicity of the perpetrator  
+**Relationship:** Relationship between the victim and the perpetrator  
+**Weapon:** Weapon used in incident  
+**Victim.Count:** Number of victims in incident  
+**Perpetrator.Count:** Number of perpetrators in incident  
+**Record.Source:** Source of the record  
+```{r}
+pander(summary(data))
+```
+## Dropping Variables
+We remove the ID number to prevent data leakage.
+```{r results='hide'}
+data[,Record.ID:=NULL]
+```
+We remove Agency Code, Agency Name, and City because all of these predictors have too many factors for R to handle. As it is unclear what the incident predictors represents, we remove it as well.
+```{r results='hide'}
+data[,Agency.Code:=NULL]
+data[,Agency.Name:=NULL]
+data[,City:=NULL]
+data[,Incident:=NULL]
+data[,State:=substr(State,1,3)]
+```
+We remove information about the perpetrator, because none of this information is known in cases when the murder is not solved and so it would skew the results.
+```{r}
+table(data$Perpetrator.Sex,data$Crime.Solved)
+```
+```{r results='hide'}
+data[,Perpetrator.Sex:=NULL]
+data[,Perpetrator.Age:=NULL]
+data[,Perpetrator.Race:=NULL]
+data[,Perpetrator.Ethnicity:=NULL]
+data[,Relationship:=NULL]
+data<-data[,Perpetrator.Count:=NULL]
+```
+Since we are only interested in cases where there are victims, and where these victims have ages that makes sense, we eliminate observations where the victim count is zero and the age is 99 or above. It's curious why these would be included at all, but I remove them here for the purposes of my analysis.
+```{r results='hide'}
+data<-data[Victim.Count>0,]
+data<-data[Victim.Age<99]
+```
+So now we are left with a dataset of *N = 51426* observations, and *p = 13* variables.  
+# Exploratory Data Analysis  
+Now  
+
+```{r, echo=FALSE}
+ggplot(data, aes(Agency.Type)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,40000,2500)) + 
+  ggtitle("Distribution of Agency Types") +
+  labs(x="Agency Type",y="Count") +
+  theme_bw()
+```
+Here we can see most incidents are handled by the Municipal Police Departments.
+```{r, echo=FALSE}
+ggplot(data, aes(State)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,8500,500)) + 
+  ggtitle("Incidents Per State") +
+  labs(x="State",y="Count") +
+  theme_bw()
+```
+Here we can see
+```{r, echo=FALSE}
+ggplot(data, aes(Year)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,2000,200)) +
+  scale_x_continuous(breaks=c(1980:2014)) +
+  ggtitle("Incidents Per Year") +
+  labs(x="Year",y="Count") +
+  theme_bw()
+```
+Here we can see a relative spike during the early 1990's ('92-'95), with a significant drop in 1996.
+```{r, echo=FALSE}
+ggplot(data, aes(Month)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,5000,500)) +
+  ggtitle("Incidents Per Month") +
+  labs(x="Month",y="Count") +
+  theme_bw()
+```
+Here we can see that the incidents are spread relatively even throughout the year, hovering around or above 4000, with the exception of February.
+```{r, echo=FALSE}
+ggplot(data, aes(Crime.Type)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,52000,5000)) +
+  ggtitle("Type of Crime") +
+  labs(x="Type of Crime",y="Count") +
+  theme_bw()
+```
+Here we can see that a majority of the incidents were not the result of negligence.
+```{r, echo=FALSE}
+ggplot(data, aes(Victim.Sex)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,35000,5000)) +
+  ggtitle("Sex of Victim") +
+  labs(x="Sex of Victim",y="Count") +
+  theme_bw()
+```
+Here we can see that there are almost twice as many male victims as female.
+```{r, echo=FALSE}
+ggplot(data, aes(Victim.Age)) +
+  geom_histogram(bins=20,color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,10000,500)) +
+  scale_x_continuous(breaks=seq(0,100,5)) +
+  ggtitle("Age of Victim") +
+  labs(x="Age of Victim (0 = 0-4, etc.)",y="Count") +
+  theme_bw()
+```
+Here we can see that the large proportion of the victims are in their twenties.
+```{r, echo=FALSE}
+ggplot(data, aes(Victim.Race)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,32000,5000)) +
+  ggtitle("Race of Victim") +
+  labs(x="Race of Victim",y="Count") +
+  theme_bw()
+```
+Here we can see that most victims are white, with a large proportion of them being black as well.
+```{r, echo=FALSE}
+ggplot(data, aes(Victim.Ethnicity)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,32000,10000)) +
+  ggtitle("Ethinicity of Victim") +
+  labs(x="Ethnicity of Victim",y="Count") +
+  theme_bw()
+```
+Here we can see
+```{r, echo=FALSE}
+ggplot(data, aes(Weapon)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,30000,5000)) +
+  ggtitle("Weapon Used in Incident") +
+  labs(x="Weapon",y="Count") +
+  theme_bw()
+```
+Here we can see
+```{r, echo=FALSE}
+ggplot(data, aes(Victim.Count)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,40000,5000)) +
+  scale_x_continuous(breaks=c(0:10)) +
+  ggtitle("Victim Count Per Incident") +
+  labs(x="Victim Count",y="Count") +
+  theme_bw()
+```
+
+```{r, echo=FALSE}
+ggplot(data, aes(Record.Source)) +
+  geom_bar(color='white',fill='darkgreen') + 
+  scale_y_continuous(breaks=seq(0,52000,5000)) +
+  ggtitle("Source of Record") +
+  labs(x="Source",y="Count") +
+  theme_bw()
+```
+
+## Part 2 Machine Learning
+
+```{r, message=FALSE, warning=FALSE}
+library(h2o)
+library(randomForest)
+library(ROCR)
+library(ggplot2)
+```
+
