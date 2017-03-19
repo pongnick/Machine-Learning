@@ -1,0 +1,227 @@
+---
+title: "R-Lab Home Assignment"
+subtitle: "Predicting Arrival Delays"
+author: 'Nicholas Pongratz'
+date: "February 28, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+``` 
+# Contents
+
+1. Setup
+2. Feature Engineering
+3. Exploratory Data Analysis
+4. Modeling
+5. Results
+
+#  1. Setup
+## Load Libraries  
+```{r message=TRUE, warning=FALSE, results="hide"}
+library(nycflights13)
+library(data.table)
+library(ggplot2)
+library(pander)
+library(h2o)
+```
+  
+## Load Data  
+```{r }
+fs <- data.table(nycflights13::flights)
+pander(summary(fs))
+```
+  
+# 2. Feature Engineering  
+## Create weekday variable
+```{r results="hide"}
+fs[, weekday := format.Date(time_hour,"%a")]
+```
+  
+## Omit NAs  
+```{r, message=FALSE}
+fs<-na.omit(fs)
+```
+  
+## Arrival delay already included, so no need to calculate from other variables  
+```{r, message=FALSE}
+fs$dep_time <- NULL
+fs$sched_dep_time <- NULL
+fs$arr_time <- NULL
+fs$sched_arr_time <- NULL
+```
+  
+## Superfluous Variables  
+```{r, message=FALSE}
+fs$tailnum <- NULL
+fs$flight <- NULL
+fs$air_time <- NULL
+```
+  
+# 3. Exploratory Data Analysis
+  
+## Flights Per Months  
+```{r }
+ggplot(fs[,.N,by=month], aes(as.factor(month),N)) +
+  geom_col(fill='darkgreen') +
+  scale_y_continuous(breaks=seq(0,30000,5000)) +
+  ggtitle("Flights Per Month") +
+  labs(x="Month",y="Flights") +
+  theme_bw()
+```
+  
+## Delays Per Month  
+```{r }
+ggplot(fs[arr_delay>15,.N,by=month], aes(as.factor(month),N)) +
+  geom_col(aes(fill=N)) +
+  scale_y_continuous(breaks=seq(0,9000,1000)) +
+  ggtitle("Delays Per Month") +
+  labs(x="Month",y="Flights Delayed by 15 Mins") +
+  theme_bw() +
+  scale_fill_distiller("Percentage",palette = "Spectral")
+```
+  
+## Monthly Delay-Flight Ratio  
+```{r }
+ggplot((fs[,mean(arr_delay>15),by=month]),aes(as.factor(month),V1)) +
+  geom_col(aes(fill=V1)) +
+  ggtitle("Monthly Delay-Flight Ratio") +
+  labs(x="Month",y="Percent of Flights Delayed") +
+  theme_bw() +
+  scale_fill_distiller("Percentage",palette = "Spectral")
+```
+  
+## Flights Per Day of Week  
+```{r }
+ggplot(fs[,.N,by=weekday], aes(as.factor(weekday),N)) +
+  geom_col(fill='darkgreen') +
+  scale_y_continuous(breaks=seq(0,50000,10000)) +
+  ggtitle("Flights Per Day of Week") +
+  labs(x="Day of Week",y="Flights") +
+  theme_bw()
+```
+  
+## Delays Per Day of Week  
+```{r }
+ggplot(fs[arr_delay>15,.N,by=weekday], aes(as.factor(weekday),N)) +
+  geom_col(fill='darkgreen') +
+  scale_y_continuous(breaks=seq(0,15000,2500)) +
+  ggtitle("Delays Per Day of Week") +
+  labs(x="Day of Week",y="Flights Delayed by 15 Mins") +
+  theme_bw() + 
+  scale_x_discrete(limits=(fs[,.N,by=.(weekday)]$weekday))
+```
+  
+## Delay-Flight Ratio Per Day of Week  
+```{r }
+ggplot(fs[,mean(arr_delay>15),by=weekday],aes(x=as.factor(weekday),y=V1)) +
+  geom_col(aes(fill=V1)) +
+  ggtitle("Delay-Flight Ratio Per Day of Week") +
+  labs(x="Day of Week",y="Percent of Flights Delayed") +
+  theme_bw() + 
+  scale_x_discrete(limits=(fs[,.N,by=.(weekday)]$weekday))+
+  scale_fill_distiller("Percentage",palette = "Spectral")
+```
+  
+## Flights Per Day of Week Per Month  
+```{r }
+ggplot(fs[, .N, by=.(month, weekday)], aes(as.factor(weekday), N)) +
+  geom_col(fill = 'darkgreen') +
+  ggtitle("Flights Per Day of Week Per Month") +
+  labs(x = "Day of Week", y = "Flights") +
+  theme_bw() +
+  facet_wrap( ~ factor(month,labels=fs[,.N,by=.(format.Date(time_hour,"%b"))][c(1,5:12,2:4)]$format.Date)) +
+  scale_x_discrete(limits=(fs[,.N,by=.(weekday)]$weekday))
+```
+  
+## Delays Per Day of Week Per Month  
+```{r }
+ggplot(fs[arr_delay>15,.N,by=.(month,weekday)], aes(as.factor(weekday),N)) +
+  geom_col(aes(fill=N)) +
+  ggtitle("Delays Per Day of Week Per Month") +
+  labs(x = "Day of Week", y = "Flights Delayed by 15 Mins") +
+  theme_bw() +
+  facet_wrap( ~ factor(month,labels=fs[,.N,by=.(format.Date(time_hour,"%b"))][c(1,5:12,2:4)]$format.Date)) +
+  scale_x_discrete(limits=(fs[,.N,by=.(weekday)]$weekday)) +
+  scale_fill_distiller("Count",palette = "Spectral")
+```
+  
+## Delay-Flight Ratio Per Week Per Month  
+```{r }
+ggplot(fs[,mean(arr_delay>15),by=.(month,weekday)],aes(y=as.factor(weekday),x=as.factor(month))) +
+  geom_tile(aes(fill = V1))  +
+  ggtitle("Delay-Flight Ratio Per Day of Week Per Month") +
+  labs(x = "Month", y = "Day of Week") +
+  theme_bw()+scale_x_discrete(labels=fs[,.N,by=.(format.Date(time_hour,"%b"))][c(1,5:12,2:4)]$format.Date)+ 
+  scale_y_discrete(limits=rev(fs[,.N,by=.(weekday)]$weekday))+scale_fill_distiller("% Delayed",palette="Spectral")
+```
+  
+# 4. Modeling  
+  
+## H2O Setup  
+```{r results="hide"}
+h2o.init()
+h2o.removeAll()
+df<-fs
+df$month<-as.factor(df$month)
+df$day<-as.factor(df$day)
+df$carrier<-as.factor(df$carrier)
+df$origin<-as.factor(df$origin)
+df$hour<-as.factor(df$hour)
+df$minute<-as.factor(df$minute)
+df$dest<-as.factor(df$dest)
+df$weekday<-as.factor(df$weekday)
+df$arr_delay<-as.factor(ifelse(df$arr_delay>15,1,0))
+df$year<-NULL
+df$time_hour<-NULL
+
+set.seed(4321)
+N1<-nrow(df)
+vt<-sample(1:N1,0.6*N1)
+d_train<-df[vt,]
+d_vt<-df[-vt,]
+N2<-nrow(d_vt)
+t<-sample(1:N2,0.5*N2)
+d_valid<-d_vt[t,]
+d_test<-d_vt[-t,]
+
+dx_train <- as.h2o(d_train)
+dx_valid<- as.h2o(d_valid)
+dx_test <- as.h2o(d_test)
+```
+
+## Training Set  
+```{r results="hide",message=F,warning=F}
+RF<-h2o.gbm(x=colnames(dx_train)[-4],y=colnames(dx_train)[4],training_frame = dx_train,validation_frame = dx_valid,seed=4321)
+
+RFp<-h2o.performance(RF)
+RFrp<-cbind(h2o.fpr(RFp),h2o.tpr(RFp)$tpr)
+colnames(RFrp)[3]<-"tpr"
+RFt<-h2o.performance(RF,newdata = dx_test)
+RFrt<-cbind(h2o.fpr(RFt),h2o.tpr(RFt)$tpr)
+colnames(RFrt)[3]<-"tpr"
+```
+```{r, message=FALSE, warning=FALSE}
+RFcm<-h2o.confusionMatrix(RFp)
+ggplot(RFrp,aes(x=fpr,y=tpr))+geom_line(aes(col=threshold))+xlab("False Positive Rate")+ylab("True Positive Rate")+
+scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5)
+pander(RFcm[,1:3])
+pander(h2o.varimp(RF)[1:10,])
+
+```
+## Test Set  
+```{r, message=FALSE, warning=FALSE}
+RFcm<-h2o.confusionMatrix(RFt)
+ggplot(RFrt,aes(x=fpr,y=tpr))+geom_line(aes(col=threshold))+xlab("False Positive Rate")+ylab("True Positive Rate")+
+scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5)
+pander(RFcm[,1:3])
+```
+```{r results="hide"}
+h2o.shutdown(prompt=F)
+```
+# 5. Results
+AUC is `r h2o.auc(RFp)` for the trainging set. 
+AUC is `r h2o.auc(RFt)` for the test set.
+
+The main factor determining arrival delay is, naturally, departure delay.
