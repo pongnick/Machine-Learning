@@ -8,6 +8,8 @@ output: html_document
 ## Dataset
 The dataset being used for this project is Homicide Reports, 1980 - 2014, which can be retrieved at the link below. It is a collection of data on homicides throughout the United States collected by the FBI, or made available by the Freedom of Information Act. The dataset consists of *N = 638454* observations, with *p = 24 predictors*. For this project I will endeavor to derive a model to determine whether a murder will be solved or not. In discussing the predictors a number of them will be dropped as well as the number of observations. 
 
+https://www.kaggle.com/murderaccountability/homicide-reports
+
 ## Initialization and Loading the Data
 First, I must load the libraries I will need to analyze the data, as well as the dataset itself. Data Tables provide some conveniences for analysis, such as subsetting the data without having to use another function.
 ```{r, warning=FALSE}
@@ -16,8 +18,9 @@ library(ggplot2)
 library(descr)
 library(pander)
 library(knitr)
+library(gridExtra)
 
-#opts_chunk$set(cache=TRUE)
+opts_chunk$set(cache=TRUE)
 rawdata <- data.table(read.csv('/Users/pongnick/Desktop/database.csv'))
 data<-rawdata
 ```
@@ -50,12 +53,16 @@ The initial 24 predictors are as follows:
 ```{r}
 pander(summary(data))
 ```
+  
 ## Dropping Variables
 We remove the ID number to prevent data leakage.
+  
 ```{r results='hide'}
 data[,Record.ID:=NULL]
 ```
+  
 We remove Agency Code, Agency Name, and City because all of these predictors have too many factors for R to handle. As it is unclear what the incident predictors represents, we remove it as well.
+  
 ```{r results='hide'}
 data[,Agency.Code:=NULL]
 data[,Agency.Name:=NULL]
@@ -63,7 +70,9 @@ data[,City:=NULL]
 data[,Incident:=NULL]
 data[,State:=substr(State,1,3)]
 ```
+  
 We remove information about the perpetrator, because none of this information is known in cases when the murder is not solved and so it would skew the results.
+  
 ```{r}
 table(data$Perpetrator.Sex,data$Crime.Solved)
 ```
@@ -75,12 +84,16 @@ data[,Perpetrator.Ethnicity:=NULL]
 data[,Relationship:=NULL]
 data<-data[,Perpetrator.Count:=NULL]
 ```
+  
 Since we are only interested in cases where there are victims, and where these victims have ages that makes sense, we eliminate observations where the victim count is zero and the age is 99 or above. It's curious why these would be included at all, but I remove them here for the purposes of my analysis.
+  
 ```{r results='hide'}
 data<-data[Victim.Count>0,]
 data<-data[Victim.Age<99]
 ```
-So now we are left with a dataset of *N = 51426* observations, and *p = 13* variables.  
+   
+So now we are left with a dataset of *N = 51426* observations, and *p = 13* variables.
+  
 # Exploratory Data Analysis  
 Now  
 
@@ -90,18 +103,22 @@ ggplot(data, aes(Agency.Type)) +
   scale_y_continuous(breaks=seq(0,40000,2500)) + 
   ggtitle("Distribution of Agency Types") +
   labs(x="Agency Type",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see most incidents are handled by the Municipal Police Departments.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(State)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,8500,500)) + 
   ggtitle("Incidents Per State") +
   labs(x="State",y="Count") +
-  theme_bw()
-```
-Here we can see
+  theme_bw()  
+```  
+  
+Here we can see that the vast majority of incidents took place in California, New York and Texas, which is no surprise as these are the three most populated states in the country.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Year)) +
   geom_bar(color='white',fill='darkgreen') + 
@@ -109,36 +126,44 @@ ggplot(data, aes(Year)) +
   scale_x_continuous(breaks=c(1980:2014)) +
   ggtitle("Incidents Per Year") +
   labs(x="Year",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see a relative spike during the early 1990's ('92-'95), with a significant drop in 1996.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Month)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,5000,500)) +
   ggtitle("Incidents Per Month") +
   labs(x="Month",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see that the incidents are spread relatively even throughout the year, hovering around or above 4000, with the exception of February.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Crime.Type)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,52000,5000)) +
   ggtitle("Type of Crime") +
   labs(x="Type of Crime",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see that a majority of the incidents were not the result of negligence.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Victim.Sex)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,35000,5000)) +
   ggtitle("Sex of Victim") +
   labs(x="Sex of Victim",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see that there are almost twice as many male victims as female.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Victim.Age)) +
   geom_histogram(bins=20,color='white',fill='darkgreen') + 
@@ -146,36 +171,44 @@ ggplot(data, aes(Victim.Age)) +
   scale_x_continuous(breaks=seq(0,100,5)) +
   ggtitle("Age of Victim") +
   labs(x="Age of Victim (0 = 0-4, etc.)",y="Count") +
-  theme_bw()
-```
-Here we can see that the large proportion of the victims are in their twenties.
+  theme_bw()  
+```  
+  
+Here we can see that the largest proportion of the victims are in their twenties.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Victim.Race)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,32000,5000)) +
   ggtitle("Race of Victim") +
   labs(x="Race of Victim",y="Count") +
-  theme_bw()
-```
+  theme_bw()  
+```  
+  
 Here we can see that most victims are white, with a large proportion of them being black as well.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Victim.Ethnicity)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,32000,10000)) +
   ggtitle("Ethinicity of Victim") +
   labs(x="Ethnicity of Victim",y="Count") +
-  theme_bw()
-```
-Here we can see
+  theme_bw()  
+```  
+  
+Here we can see that, according to the criteria set by the compilers of this data, the ethnicity is mostly unknown, so it will likely not play a large factor.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Weapon)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,30000,5000)) +
   ggtitle("Weapon Used in Incident") +
   labs(x="Weapon",y="Count") +
-  theme_bw()
-```
-Here we can see
+  theme_bw()  
+```  
+  
+Here we can see that the vast majority of the homicides were committed using a handgun.
+
 ```{r, echo=FALSE}
 ggplot(data, aes(Victim.Count)) +
   geom_bar(color='white',fill='darkgreen') + 
@@ -183,24 +216,235 @@ ggplot(data, aes(Victim.Count)) +
   scale_x_continuous(breaks=c(0:10)) +
   ggtitle("Victim Count Per Incident") +
   labs(x="Victim Count",y="Count") +
-  theme_bw()
-```
-
+  theme_bw()  
+```  
+  
+Here we can see that in most cases there was only a single victim involved in the incident.
+  
 ```{r, echo=FALSE}
 ggplot(data, aes(Record.Source)) +
   geom_bar(color='white',fill='darkgreen') + 
   scale_y_continuous(breaks=seq(0,52000,5000)) +
   ggtitle("Source of Record") +
   labs(x="Source",y="Count") +
-  theme_bw()
-```
-
-## Part 2 Machine Learning
-
-```{r, message=FALSE, warning=FALSE}
+  theme_bw()  
+```  
+  
+Finally, here we see that most of these records were attained through the FBI.
+  
+# Part 2 Machine Learning
+At this point I take my dataset and separate it into training, validation, and test sets. Then using the Random Forest and GBM methods, I train a model using the training set, which includes cross-validation, utilizing the validation set. Once the model has run grid search is used to find the optimal model it is tested on the test set, and its accuracy is displayed using an ROC curve.  
+  
+## Load the Library and Data
+First I load the H20 library, I will use to to do machine learning, then initiate it, using utilizing the six cores of my computer's processer. I remove anything that may already be there and then upload the data as a dataframe.
+  
+```{r, message=FALSE, warning=FALSE, results='hide'}
 library(h2o)
-library(randomForest)
-library(ROCR)
-library(ggplot2)
+h2o.init(nthreads = 6)
+h2o.removeAll()
+df<-data
+h2o_d<-as.h2o(df)
+```
+  
+## Split the Data
+Here the data is split into a training, validation and test sets, at a proportion of 0.6, 0.2, and 0.2 respectively, while also setting a seed to make the results reproducible.
+  
+```{r results='hide'}
+h2o_sd<- h2o.splitFrame(h2o_d, ratios = c(.6, 0.2),seed=4321)
+names(h2o_sd) <- c('train', 'valid', 'test')
+```
+  
+## Run Random Forest 
+Here I run the first method, Random Forest. First I remove anything that may already have the title 'RF' from the workspace. The I create a new variable called 'RF', which uses the 'randomForest' algorithm, has the hyperparameters set and 15, 20 and 25 levels of depth, with 3, 5, and 7 predictors per tree. I use the training set as the training frame, the validation set as the validation frame, all of the columns as predictor, to try and predict whether a crime will be solved. I set the number of trees at 100, and the number of folds for cross-validation at 5.
+  
+```{r results='hide', warning=FALSE,}
+h2o.rm("RF")
+
+RF <- h2o.grid(
+  algorithm = "randomForest", 
+  grid_id = "RF", 
+  hyper_params = list(max_depth=c(15,20,25),mtries=c(3,5,7)), 
+  training_frame = h2o_sd$train, 
+  validation_frame = h2o_sd$valid, 
+  x=colnames(h2o_sd$train), 
+  y="Crime.Solved", 
+  seed=4321,
+  ntrees=100,
+  nfolds=5 
+)
+```
+  
+Once I have the results I use grid search to list all the models it produced by order of decreasing accuracy, thus giving me the most accurate model at the top of the list, which is the displayed with the best level depth and the best amount of predictors.
+  
+```{r results='hide'}
+RFm<-h2o.getGrid(
+  grid_id = "RF", 
+  sort_by = "AUC",
+  decreasing = TRUE
+)
 ```
 
+```{r}
+RFm
+RFb<- h2o.getModel(RFm@model_ids[[1]]) 
+RFb@parameters$max_depth 
+RFb@parameters$mtries
+```
+  
+## Visualize Results with Test Set 
+To provide a visualiztion for these results I must extract the relevant information from the model, put them into new variables which I then visualize with ggplot. The results of the training model are displaye alongside the results from the model's success on the test set.
+  
+```{r results='hide'}
+RFp<-h2o.performance(RFb,valid=T) 
+h2o.auc(RFp) 
+RFrp<-cbind(h2o.fpr(RFp),h2o.tpr(RFp)$tpr)
+colnames(RFrp)[3]<-"tpr" 
+RFt<-h2o.performance(RFb,newdata = h2o_sd$test) 
+RFrt<-cbind(h2o.fpr(RFt),h2o.tpr(RFt)$tpr)
+h2o.auc(RFt)
+colnames(RFrt)[3]<-"tpr"
+
+RFev<-ggplot(h2o.F1(RFp)) +
+  geom_line(aes(x=threshold,y=f1,color=threshold),size=1) +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  labs(x="Threshold",y="F1 Metric")
+
+RFet<-ggplot(h2o.F1(RFt)) + 
+  geom_line(aes(x=threshold,y=f1,color=threshold),size=1) +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  labs(x="Threshold",y="F1 Metric")
+  
+RFav<-ggplot(RFrp,aes(x=fpr,y=tpr)) +
+  geom_line(aes(col=threshold),size=1) +
+  labs(x="False Positive Rate",y="True Positive Rate") +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  geom_segment(x=0,y=0,xend=1,yend=1,size=1,col="#00BFC4")
+
+RFat<-ggplot(RFrt,aes(x=fpr,y=tpr)) +
+  geom_line(aes(col=threshold),size=1) + 
+  labs(x="False Positive Rate",y="True Positive Rate") +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5)+
+  geom_segment(x=0,y=0,xend=1,yend=1,size=1,col="#00BFC4")
+
+grid.arrange(RFev,RFav,ncol=1)
+grid.arrange(RFet,RFat,ncol=1)
+
+ggplot(data.table(cbind(h2o.varimp(RFb)$variable[1:10],h2o.varimp(RFb)$scaled_importance[1:10],h2o.varimp(RFb)$relative_importance[1:10]))) +
+  geom_col(aes(x=V1,y=as.numeric(V2),fill=as.numeric(V3))) +
+  coord_flip() +
+  scale_x_discrete(limits=rev(h2o.varimp(RFb)$variable[1:10])) +
+  scale_y_continuous(breaks=seq(0,1,0.25)) +
+  theme(axis.ticks=element_blank()) +
+  labs(x="Variable",y="Relative Importance") +
+  scale_fill_distiller(palette="Spectral",guide=F)
+```
+  
+Finally we display the confusions matrix, which shows the number of True and False Positive the model creates.
+  
+```{r}
+h2o.confusionMatrix(RFp,metric="min_per_class_accuracy")[,1:3]
+h2o.confusionMatrix(RFt,metric="min_per_class_accuracy")[,1:3]
+```
+  
+## Run GBM
+Now I will try running a different model, to see what the variability is in accuracy and what the determinant predictors are.First I remove anything that may already have the title 'GBM' from the workspace. The I create a new variable called 'GBM', which uses the 'gbm' algorithm, has the hyperparameters set and 4, 5 and 6 levels of depth, with learn rate of 0.06, 0.07, 0.08, 0.09, and 0.1. I use the training set as the training frame, the validation set as the validation frame, all of the columns as predictor, to try and predict whether a crime will be solved. I set the number of trees at 100, and the number of folds for cross-validation at 5.
+  
+```{r results='hide'}
+h2o.rm("GBM") # Remove anything already GBM
+
+GBM <- h2o.grid(
+  algorithm = "gbm", 
+  grid_id = "GBM",
+  hyper_params = list(max_depth=c(4,5,6),learn_rate=c(0.06,0.07,0.08,0.09,0.1)), # 
+  training_frame = h2o_sd$train,
+  validation_frame = h2o_sd$valid,
+  x=colnames(h2o_sd$train),
+  y="Crime.Solved",
+  seed=4321,
+  ntrees=100,
+  nfolds=5
+)
+```
+  
+Once I have the results I use grid search to list all the models it produced by order of decreasing accuracy, thus giving me the most accurate model at the top of the list, which is the displayed with the best level depth and the best learning rate.
+  
+```{r results='hide'}
+GBMm<-h2o.getGrid(
+  grid_id = "GBM", 
+  sort_by = "AUC",
+  decreasing = TRUE
+)
+```
+
+```{r}
+GBMm
+GBMb<- h2o.getModel(GBMm@model_ids[[1]])
+GBMb@parameters$learn_rate
+GBMb@parameters$max_depth
+```
+  
+## Visualize Results with Test Set 
+To provide a visualiztion for these results I must extract the relevant information from the model, put them into new variables which I then visualize with ggplot. The results of the training model are displaye alongside the results from the model's success on the test set.
+  
+```{r results='hide'}
+GBMp<-h2o.performance(GBMb,valid=T)
+h2o.auc(GBMp)
+GBMrp<-cbind(h2o.fpr(GBMp),h2o.tpr(GBMp)$tpr)
+colnames(GBMrp)[3]<-"tpr"
+GBMt<-h2o.performance(GBMb,newdata = h2o_sd$test)
+GBMrt<-cbind(h2o.fpr(GBMt),h2o.tpr(GBMt)$tpr)
+h2o.auc(GBMt)
+colnames(GBMrt)[3]<-"tpr"
+
+GBMev<-ggplot(h2o.F2(GBMp)) +
+  geom_line(aes(x=threshold,y=f2,color=threshold),size=1) +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  labs(x="Threshold",y="F2 Metric")
+
+GBMet<-ggplot(h2o.F2(GBMt)) +
+  geom_line(aes(x=threshold,y=f2,color=threshold),size=1) +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  labs(x="Threshold",y="F2 Metric")
+
+GBMav<-ggplot(GBMrp,aes(x=fpr,y=tpr)) +
+  geom_line(aes(col=threshold),size=1) +
+  labs(x="False Positive Rate",y="True Positive Rate") +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5)+
+  geom_segment(x=0,y=0,xend=1,yend=1,size=1,col="#00BFC4")
+
+GBMat<-ggplot(GBMrt,aes(x=fpr,y=tpr)) +
+  geom_line(aes(col=threshold),size=1) +
+  labs(x="False Positive Rate",y="True Positive Rate") +
+  scale_color_gradient2("Threshold",low="red",high="green",mid="yellow",midpoint = 0.5) +
+  geom_segment(x=0,y=0,xend=1,yend=1,size=1,col="#00BFC4")
+
+grid.arrange(GBMev,GBMav,ncol=1)
+grid.arrange(GBMet,GBMat,ncol=1)
+
+ggplot(data.table(cbind(h2o.varimp(GBMb)$variable[1:10],h2o.varimp(GBMb)$scaled_importance[1:10],h2o.varimp(GBMb)$relative_importance[1:10])))+
+  geom_col(aes(x=V1,y=as.numeric(V2),fill=as.numeric(V3))) +
+  coord_flip() +
+  scale_x_discrete(limits=rev(h2o.varimp(GBMb)$variable[1:10])) +
+  scale_y_continuous(breaks=seq(0,1,0.25)) +
+  theme(axis.ticks=element_blank()) +
+  labs(x="Variable",y="Relative Importance") +
+  scale_fill_distiller(palette="Spectral",guide=F)
+```
+  
+Once I have the results I use grid search to list all the models it produced by order of decreasing accuracy, thus giving me the most accurate model at the top of the list, which is the displayed with the best level depth and the best learning rate.
+  
+```{r}
+h2o.confusionMatrix(GBMp)[,1:3]
+h2o.confusionMatrix(GBMt)[,1:3]
+```
+  
+## Shutdown
+Now that the model processing has completed I shut down H20.
+  
+```{r results='hide'}
+h2o.shutdown()
+```
+  
+# Conclusion
+It seems that the Random Forest method provided the most accurate results, but it is interesting to note that for both methods among the highest determining predictors were the year and the month the crime took place, suggesting that when the crime took place is one of the largest factors in determining whether it will be solved or not. 
+  
